@@ -1,9 +1,13 @@
 entrée
 Makefile
+petit_pg
+petit_pg.c
+petit_pg.o
 readcmd.c
 readcmd.h
 readcmd.o
 shell
+shell2.c
 shell.c
 shell.o
 sortie

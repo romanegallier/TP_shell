@@ -7,6 +7,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+
+void commande_redirection(int i, int in, int out, struct cmdline * l);
+
 int main()
 {
 	while (1) {
@@ -28,8 +31,8 @@ int main()
 			continue;
 		}
 
-		if (l->in) printf("in: %s\n, je ne traite pas encore ce cas\n", l->in);
-		if (l->out) printf("out: %s\n, je ne traite pas encore ce cas\n", l->out);
+//		if (l->in) printf("in: %s\n, je ne traite pas encore ce cas\n", l->in);
+//		if (l->out) printf("out: %s\n, je ne traite pas encore ce cas\n", l->out);
 
 		/* Display each command of the pipe */ 
 		//ne sert a rien ici
@@ -41,40 +44,87 @@ int main()
 			}
 			printf("\n");
 		}
+
+
 		int taille=0;
 		while (l->seq[taille]!= NULL){
 			taille ++;
 		}
-		printf ("taille :%i\n", taille);
-		//cas d'une commande simple sans pipe:
-		if (taille ==1){
-			int pid,status;
-			switch( pid= fork()){
-				case -1: printf ("Probleme !!!!!\n"); exit (-1);
-				case 0 : {
-				
-					if (l->in) {
-						int f= open (l->in,O_RDONLY,S_IRUSR|S_IWUSR);
-						dup2(f, STDIN_FILENO);
-						close(f);
-					}
-					if (l->out){
-						
-						int f= open (l->out,O_WRONLY | O_TRUNC|O_CREAT,S_IRUSR|S_IWUSR);
-					
-						dup2(f, STDOUT_FILENO);
-						close(f);
-					}
-					execvp(l->seq[0][0],l->seq[0]);
-				}	 
-				default : 
-					if (waitpid(pid,&status,0)==-1){printf("Probleme !!!!\n");exit(-1);}
-					
-			}
-		}
 		
+		int p[2];
+		int in = STDIN_FILENO, out;
+		i=0;
+		while(i<taille -1)
+		{
+			if(taille>1) 
+			{
+				if(pipe(p)==-1)
+				{
+					printf("Probleme pipe(p)\n");
+					exit(1);
+				} 
+			}
+		
+			out = p[1];
+			
+			commande_redirection(i,in, out, l);
+		
+			//on ne ferme que la sortie car le fils va écrire sur l'entrée
+			close(out);
+			
+			//Le prochain fils  se servira de p[0] pour lire
+			in = p[0];
+
+			//On passe à la commande suivante
+			i++;
+			
+		}
+
+		// pour la dernière commande, la sortie est la console ou le fichier indiqué par la redirection
+		commande_redirection(i, in, -1, l);
+
 	}
 }
+
+
+		//cas d'une commande simple sans pipe:
+		
+	void commande_redirection(int i, int in, int out, struct cmdline * l){
+		int pid,status;
+		switch( pid= fork()){
+			case -1: printf ("Probleme !!!!!\n"); exit (-1);
+			case 0 : {
+			
+				if (l->in) {
+					int f= open (l->in,O_RDONLY,S_IRUSR|S_IWUSR);
+					dup2(f, STDIN_FILENO);
+					close(f);
+				}
+				else {
+					dup2(in, STDIN_FILENO);
+					close(in);
+				}
+				
+				if (l->out){
+					
+					int f= open (l->out,O_WRONLY | O_TRUNC|O_CREAT,S_IRUSR|S_IWUSR);
+				
+					dup2(f, STDOUT_FILENO);
+					close(f);
+				} else {
+					dup2(out,STDOUT_FILENO);
+					close(out);
+				}
+				execvp(l->seq[i][0],l->seq[i]);
+			}	 
+			default : 
+				if (waitpid(pid,&status,0)==-1){printf("Probleme !!!!\n");exit(-1);}
+				
+	}
+}
+	
+
+
 
  
 
