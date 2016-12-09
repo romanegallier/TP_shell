@@ -8,7 +8,7 @@
 #include <fcntl.h>
 
 
-void commande_redirection(int i, int in, int out, struct cmdline * l);
+void commande_redirection(int num_commande, int nb_commandes, int in, int out, struct cmdline * l);
 
 int main()
 {
@@ -67,7 +67,7 @@ int main()
 		
 			out = p[1];
 			
-			commande_redirection(i,in, out, l);
+			commande_redirection(i, taille, in, out, l);
 		
 			//on ne ferme que la sortie car le fils va écrire sur l'entrée
 			close(out);
@@ -81,7 +81,7 @@ int main()
 		}
 
 		// pour la dernière commande, la sortie est la console ou le fichier indiqué par la redirection
-		commande_redirection(i, in, -1, l);
+		commande_redirection(i, taille, in, -1, l);
 
 	}
 }
@@ -89,13 +89,13 @@ int main()
 
 		//cas d'une commande simple sans pipe:
 		
-	void commande_redirection(int i, int in, int out, struct cmdline * l){
+	void commande_redirection(int num_commande, int nb_commandes, int in, int out, struct cmdline * l){
 		int pid,status;
 		switch( pid= fork()){
 			case -1: printf ("Probleme !!!!!\n"); exit (-1);
 			case 0 : {
 			
-				if (l->in) {
+				if (l->in && num_commande == 0) {
 					int f= open (l->in,O_RDONLY,S_IRUSR|S_IWUSR);
 					dup2(f, STDIN_FILENO);
 					close(f);
@@ -105,7 +105,7 @@ int main()
 					close(in);
 				}
 				
-				if (l->out){
+				if (l->out && num_commande == nb_commandes-1){
 					
 					int f= open (l->out,O_WRONLY | O_TRUNC|O_CREAT,S_IRUSR|S_IWUSR);
 				
@@ -115,7 +115,7 @@ int main()
 					dup2(out,STDOUT_FILENO);
 					close(out);
 				}
-				execvp(l->seq[i][0],l->seq[i]);
+				execvp(l->seq[num_commande][0],l->seq[num_commande]);
 			}	 
 			default : 
 				if (waitpid(pid,&status,0)==-1){printf("Probleme !!!!\n");exit(-1);}
